@@ -1,0 +1,641 @@
+
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DNA Johari Window | Vulnerability & Community</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+        }
+    </script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Merriweather:ital,wght@0,400;0,700;1,400&display=swap');
+
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+
+        .font-serif {
+            font-family: 'Merriweather', serif;
+        }
+
+        /* Rich Text Editor Styles */
+        .editor-container {
+            border: 1px solid #e2e8f0;
+            border-radius: 0.5rem;
+            background: #ffffff;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+        .dark .editor-container {
+            border-color: #334155;
+            background: #1e293b;
+        }
+        
+        .editor-toolbar {
+            background: #f1f5f9;
+            border-bottom: 1px solid #e2e8f0;
+            padding: 0.375rem 0.5rem;
+            display: flex;
+            gap: 0.25rem;
+            flex-wrap: wrap;
+        }
+        .dark .editor-toolbar {
+            background: #0f172a;
+            border-bottom-color: #334155;
+        }
+
+        .editor-btn {
+            padding: 0.25rem 0.5rem;
+            border-radius: 0.25rem;
+            color: #475569;
+            background: transparent;
+            border: 1px solid transparent;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 0.25rem;
+            font-size: 0.8125rem;
+            font-weight: 500;
+        }
+        .dark .editor-btn { color: #cbd5e1; }
+        .editor-btn:hover { background: #e2e8f0; color: #0f172a; }
+        .dark .editor-btn:hover { background: #334155; color: #f8fafc; }
+
+        .editor-content {
+            padding: 0.75rem;
+            min-height: 150px;
+            resize: vertical;
+            overflow-y: auto;
+            outline: none;
+            line-height: 1.5;
+            font-size: 0.875rem;
+            position: relative;
+        }
+
+        .editor-content ul {
+            list-style-type: disc;
+            padding-left: 1.5rem;
+            margin-bottom: 0.5rem;
+        }
+        
+        .editor-content[data-empty="true"]::before {
+            content: attr(data-placeholder);
+            color: #94a3b8;
+            pointer-events: none;
+            position: absolute;
+        }
+        .dark .editor-content[data-empty="true"]::before { color: #475569; }
+
+        /* Matrix Previews */
+        .preview-content {
+            display: block;
+            overflow-y: auto;
+            flex-grow: 1;
+            font-size: 0.8125rem;
+            color: #475569;
+            margin-top: 0.5rem;
+            padding-right: 0.25rem;
+            line-height: 1.4;
+        }
+        .dark .preview-content { color: #cbd5e1; }
+        
+        .preview-content::-webkit-scrollbar { width: 4px; }
+        .preview-content::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+        .dark .preview-content::-webkit-scrollbar-thumb { background: #475569; }
+
+        .preview-content ul {
+            list-style-type: disc;
+            padding-left: 1.2rem;
+        }
+
+        /* Modal Transitions */
+        .modal-overlay {
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.2s ease, visibility 0.2s ease;
+            backdrop-filter: blur(3px);
+        }
+        .modal-overlay.active {
+            opacity: 1;
+            visibility: visible;
+        }
+        .modal-content {
+            transform: scale(0.97) translateY(10px);
+            opacity: 0;
+            transition: transform 0.2s ease, opacity 0.2s ease;
+        }
+        .modal-overlay.active .modal-content {
+            transform: scale(1) translateY(0);
+            opacity: 1;
+        }
+
+        /* Collapsible Prompts Column */
+        .prompts-content {
+            display: grid;
+            grid-template-rows: 1fr;
+            transition: grid-template-rows 0.3s ease-in-out, opacity 0.2s ease-in-out;
+            opacity: 1;
+        }
+        .prompts-content.collapsed {
+            grid-template-rows: 0fr;
+            opacity: 0;
+        }
+        .prompts-content > div {
+            overflow: hidden;
+        }
+
+        /* Settings Dropdown */
+        .dropdown-menu {
+            opacity: 0;
+            visibility: hidden;
+            transform: translateY(-5px);
+            transition: all 0.2s ease;
+        }
+        .dropdown-menu.active {
+            opacity: 1;
+            visibility: visible;
+            transform: translateY(0);
+        }
+
+        /* Vertical text for Y-axis */
+        .vertical-text {
+            writing-mode: vertical-rl;
+            transform: rotate(180deg);
+            text-align: center;
+        }
+
+        /* Print Styles */
+        @media print {
+            body { background: #ffffff !important; color: #000000 !important; }
+            .no-print { display: none !important; }
+            .print-only { display: block !important; }
+            #print-container { display: block; padding: 0; }
+            .print-section {
+                margin-bottom: 2rem;
+                page-break-inside: avoid;
+                border: 1px solid #cbd5e1;
+                border-radius: 0.5rem;
+                padding: 1.5rem;
+            }
+            .print-section h2 { margin-top: 0; color: #0f172a; border-bottom: 2px solid #e2e8f0; padding-bottom: 0.5rem;}
+            .print-section .desc { font-style: italic; color: #475569; margin-bottom: 1rem; }
+            .print-section .content { line-height: 1.5; font-size: 0.9rem; }
+            .print-section .content ul { list-style-type: disc; padding-left: 1.5rem; }
+            @page { margin: 1in; }
+        }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col selection:bg-blue-100 dark:selection:bg-blue-900/50 bg-slate-50 text-slate-900 dark:bg-slate-900 dark:text-slate-100 transition-colors duration-200">
+
+    <main class="flex-grow flex flex-col no-print">
+        
+        <header class="bg-white dark:bg-slate-800 shadow-sm border-b border-slate-200 dark:border-slate-700 py-3 sm:py-5 px-4 sm:px-8 transition-colors duration-200 relative z-40">
+            <div class="max-w-5xl mx-auto flex justify-between items-center gap-4">
+                <div>
+                    <h1 class="text-lg sm:text-2xl font-bold text-slate-800 dark:text-white tracking-tight leading-tight">DNA Johari Window</h1>
+                    <p class="text-[10px] sm:text-xs text-slate-500 dark:text-slate-400 mt-0.5">Discipleship, Accountability, Nourishment</p>
+                </div>
+                
+                <div class="flex items-center gap-2">
+                    <button onclick="preparePrint()" class="px-3 py-1.5 text-xs sm:text-sm font-medium text-slate-700 bg-slate-100 hover:bg-slate-200 dark:text-slate-200 dark:bg-slate-700 dark:hover:bg-slate-600 rounded-lg transition-colors flex items-center gap-1.5" title="Save PDF / Print">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/></svg>
+                        <span class="hidden sm:inline">Print</span>
+                    </button>
+                    
+                    <div class="relative" id="settings-container">
+                        <button onclick="toggleSettings(event)" class="p-1.5 sm:p-2 text-slate-500 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-700 rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-slate-200 dark:focus:ring-slate-600" aria-label="Settings" aria-haspopup="true">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+                        </button>
+                        
+                        <div id="settings-menu" class="dropdown-menu absolute right-0 mt-2 w-48 bg-white dark:bg-slate-800 rounded-xl shadow-lg border border-slate-100 dark:border-slate-700 py-1 z-50">
+                            <button onclick="toggleTheme()" class="w-full text-left px-4 py-2.5 text-sm text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700/50 flex items-center gap-2">
+                                <svg class="w-4 h-4 hidden dark:block" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"/></svg>
+                                <svg class="w-4 h-4 block dark:hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"/></svg>
+                                Toggle Theme
+                            </button>
+                            <div class="h-px bg-slate-100 dark:bg-slate-700 my-1"></div>
+                            <button onclick="openClearModal()" class="w-full text-left px-4 py-2.5 text-sm text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 flex items-center gap-2">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+                                Clear All Data
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <section class="flex-grow px-4 py-4 sm:px-6 sm:py-6 md:py-8 flex justify-center">
+            <div class="max-w-4xl w-full">
+                
+                <div class="text-center max-w-2xl mx-auto mb-4 sm:mb-6">
+                    <p class="text-slate-600 dark:text-slate-400 font-serif leading-relaxed text-xs sm:text-sm">
+                        Inspired by the pursuit of truth and deeper connection, use this tool to map your spiritual journey. 
+                        Click a quadrant to open it, reflect, and document your growth.
+                    </p>
+                </div>
+
+                <div class="grid grid-cols-[24px_1fr_1fr] sm:grid-cols-[30px_1fr_1fr] gap-1.5 sm:gap-3">
+                    
+                    <div></div>
+                    
+                    <div class="flex items-center justify-center font-bold text-[9px] sm:text-[10px] text-slate-500 dark:text-slate-400 uppercase tracking-widest bg-slate-100 dark:bg-slate-800 rounded-t-md py-1">Known to Self</div>
+                    <div class="flex items-center justify-center font-bold text-[9px] sm:text-[10px] text-slate-500 dark:text-slate-400 uppercase tracking-widest bg-slate-100 dark:bg-slate-800 rounded-t-md py-1">Unknown to Self</div>
+
+                    <div class="vertical-text flex items-center justify-center font-bold text-[9px] sm:text-[10px] text-slate-500 dark:text-slate-400 uppercase tracking-widest bg-slate-100 dark:bg-slate-800 rounded-l-md px-0.5">Known to Others</div>
+                    
+                    <div onclick="openModal('arena')" tabindex="0" class="group bg-white dark:bg-slate-800 rounded-xl p-2.5 sm:p-4 shadow-sm hover:shadow-md border border-slate-200 dark:border-slate-700 cursor-pointer transition-all duration-200 hover:-translate-y-0.5 min-h-[10rem] max-h-[18rem] flex flex-col focus:outline-none focus:ring-2 focus:ring-blue-400">
+                        <div class="text-center pb-1 mb-1 border-b border-slate-100 dark:border-slate-700">
+                            <h3 class="text-sm sm:text-base font-bold text-blue-600 dark:text-blue-400">1. The Arena</h3>
+                            <p class="text-[9px] sm:text-[10px] text-slate-500 dark:text-slate-400 font-serif italic mt-0.5 hidden sm:block">The open spaces of our faith.</p>
+                        </div>
+                        <div id="preview-arena" class="preview-content"></div>
+                    </div>
+
+                    <div onclick="openModal('blindspot')" tabindex="0" class="group bg-white dark:bg-slate-800 rounded-xl p-2.5 sm:p-4 shadow-sm hover:shadow-md border border-slate-200 dark:border-slate-700 cursor-pointer transition-all duration-200 hover:-translate-y-0.5 min-h-[10rem] max-h-[18rem] flex flex-col focus:outline-none focus:ring-2 focus:ring-emerald-400">
+                        <div class="text-center pb-1 mb-1 border-b border-slate-100 dark:border-slate-700">
+                            <h3 class="text-sm sm:text-base font-bold text-emerald-600 dark:text-emerald-400">2. The Blind Spot</h3>
+                            <p class="text-[9px] sm:text-[10px] text-slate-500 dark:text-slate-400 font-serif italic mt-0.5 hidden sm:block">Where we need accountability.</p>
+                        </div>
+                        <div id="preview-blindspot" class="preview-content"></div>
+                    </div>
+
+                    <div class="vertical-text flex items-center justify-center font-bold text-[9px] sm:text-[10px] text-slate-500 dark:text-slate-400 uppercase tracking-widest bg-slate-100 dark:bg-slate-800 rounded-l-md px-0.5">Unknown to Others</div>
+                    
+                    <div onclick="openModal('facade')" tabindex="0" class="group bg-white dark:bg-slate-800 rounded-xl p-2.5 sm:p-4 shadow-sm hover:shadow-md border border-slate-200 dark:border-slate-700 cursor-pointer transition-all duration-200 hover:-translate-y-0.5 min-h-[10rem] max-h-[18rem] flex flex-col focus:outline-none focus:ring-2 focus:ring-amber-400">
+                        <div class="text-center pb-1 mb-1 border-b border-slate-100 dark:border-slate-700">
+                            <h3 class="text-sm sm:text-base font-bold text-amber-600 dark:text-amber-400">3. The Facade</h3>
+                            <p class="text-[9px] sm:text-[10px] text-slate-500 dark:text-slate-400 font-serif italic mt-0.5 hidden sm:block">Masks needing vulnerability.</p>
+                        </div>
+                        <div id="preview-facade" class="preview-content"></div>
+                    </div>
+
+                    <div onclick="openModal('mystery')" tabindex="0" class="group bg-white dark:bg-slate-800 rounded-xl p-2.5 sm:p-4 shadow-sm hover:shadow-md border border-slate-200 dark:border-slate-700 cursor-pointer transition-all duration-200 hover:-translate-y-0.5 min-h-[10rem] max-h-[18rem] flex flex-col focus:outline-none focus:ring-2 focus:ring-purple-400">
+                        <div class="text-center pb-1 mb-1 border-b border-slate-100 dark:border-slate-700">
+                            <h3 class="text-sm sm:text-base font-bold text-purple-600 dark:text-purple-400">4. The Mystery</h3>
+                            <p class="text-[9px] sm:text-[10px] text-slate-500 dark:text-slate-400 font-serif italic mt-0.5 hidden sm:block">Undiscovered parts God knows.</p>
+                        </div>
+                        <div id="preview-mystery" class="preview-content"></div>
+                    </div>
+
+                </div>
+            </div>
+        </section>
+
+        <footer class="mt-auto py-4 border-t border-slate-200 dark:border-slate-700 text-center px-4">
+            <p class="text-[10px] text-slate-500 dark:text-slate-400 flex items-center justify-center gap-1.5">
+                <svg class="w-3 h-3 text-emerald-600 dark:text-emerald-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>
+                Stored securely locally. Never uploaded.
+            </p>
+        </footer>
+    </main>
+
+    <div id="modal-arena" class="modal-overlay fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-slate-900/60 dark:bg-slate-900/80 no-print" role="dialog" aria-modal="true">
+        <div class="modal-content bg-white dark:bg-slate-800 w-full max-w-3xl rounded-xl shadow-2xl flex flex-col max-h-[95vh] sm:max-h-[90vh]"></div>
+    </div>
+    <div id="modal-blindspot" class="modal-overlay fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-slate-900/60 dark:bg-slate-900/80 no-print" role="dialog" aria-modal="true">
+        <div class="modal-content bg-white dark:bg-slate-800 w-full max-w-3xl rounded-xl shadow-2xl flex flex-col max-h-[95vh] sm:max-h-[90vh]"></div>
+    </div>
+    <div id="modal-facade" class="modal-overlay fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-slate-900/60 dark:bg-slate-900/80 no-print" role="dialog" aria-modal="true">
+        <div class="modal-content bg-white dark:bg-slate-800 w-full max-w-3xl rounded-xl shadow-2xl flex flex-col max-h-[95vh] sm:max-h-[90vh]"></div>
+    </div>
+    <div id="modal-mystery" class="modal-overlay fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-slate-900/60 dark:bg-slate-900/80 no-print" role="dialog" aria-modal="true">
+        <div class="modal-content bg-white dark:bg-slate-800 w-full max-w-3xl rounded-xl shadow-2xl flex flex-col max-h-[95vh] sm:max-h-[90vh]"></div>
+    </div>
+
+    <div id="modal-clear" class="modal-overlay fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 dark:bg-slate-900/80 no-print" role="dialog" aria-modal="true">
+        <div class="modal-content bg-white dark:bg-slate-800 w-full max-w-sm rounded-xl shadow-2xl p-6 text-center border border-slate-200 dark:border-slate-700">
+            <div class="w-12 h-12 bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 rounded-full flex items-center justify-center mx-auto mb-3">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
+            </div>
+            <h3 class="text-lg font-bold text-slate-800 dark:text-white mb-2">Clear All Reflections?</h3>
+            <p class="text-slate-500 dark:text-slate-400 mb-6 text-xs sm:text-sm">This cannot be undone. All notes across all quadrants will be deleted locally.</p>
+            <div class="flex gap-2 justify-center">
+                <button onclick="closeClearModal()" class="px-4 py-2 text-sm rounded-lg font-medium text-slate-700 dark:text-slate-300 bg-slate-100 hover:bg-slate-200 dark:bg-slate-700 dark:hover:bg-slate-600 transition-colors focus:outline-none focus:ring-2 focus:ring-slate-400">Cancel</button>
+                <button onclick="executeClearData()" class="px-4 py-2 text-sm rounded-lg font-medium text-white bg-red-600 hover:bg-red-700 transition-colors focus:outline-none focus:ring-2 focus:ring-red-400" id="btn-confirm-clear">Yes, Clear</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="print-container" class="hidden print-only">
+        <h1 class="text-2xl font-bold mb-1">DNA Johari Window Reflections</h1>
+        <p class="text-slate-600 mb-6 font-serif text-sm">Discipleship, Accountability, Nourishment</p>
+        <div id="print-content"></div>
+    </div>
+
+    <script>
+        // Data Structure
+        const quadrantData = {
+            arena: { id: 'arena', title: '1. The Arena', axis: 'Known to Self / Known to Others', description: 'The open spaces of our faith and life.', prompts: ["How has God been nourishing your spirit this week?", "What recent joys or victories can we celebrate with you?", "How are you actively discipling others right now?", "What is a primary truth you are living out openly?", "In what areas do you feel completely authentic with this group?"], color: 'text-blue-600 dark:text-blue-400' },
+            blindspot: { id: 'blindspot', title: '2. The Blind Spot', axis: 'Unknown to Self / Known to Others', description: 'Areas where we need loving accountability.', prompts: ["What patterns or habits do you notice in me that I might not see?", "Where do you see my greatest potential for spiritual growth?", "Are there ways my words or actions don't align with my stated beliefs?", "How can I better receive constructive accountability from you?", "What blind spots in my character might be hindering my discipleship?"], color: 'text-emerald-600 dark:text-emerald-400' },
+            facade: { id: 'facade', title: '3. The Facade', axis: 'Known to Self / Unknown to Others', description: 'The masks we wear; areas needing vulnerability.', prompts: ["What struggle or sin am I currently hiding from the group?", "Where do I feel the pressure to 'perform' spiritually?", "What fear is keeping me from being fully vulnerable?", "Where do I need deep nourishment but have been too proud to ask?", "What is one secret burden I need to lay down today?"], color: 'text-amber-600 dark:text-amber-400' },
+            mystery: { id: 'mystery', title: '4. The Mystery', axis: 'Unknown to Self / Unknown to Others', description: 'The undiscovered parts of our heart that God knows.', prompts: ["Lord, what undiscovered gifts have you placed in me?", "What deep-seated fears might be driving my hidden anxieties?", "How might God be preparing me for a future season I can't yet see?", "What unhealed wounds need the light of Christ to expose and mend?", "Where is the Holy Spirit leading me into the beautiful unknown?"], color: 'text-purple-600 dark:text-purple-400' }
+        };
+
+        const icons = {
+            ul: `<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/></svg>`,
+            indent: `<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 6H3M21 12H11M21 18H3M3 8l4 4-4 4"/></svg>`,
+            outdent: `<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 6H3M21 12H11M21 18H3M7 8l-4 4 4 4"/></svg>`
+        };
+
+        let activeModalId = null;
+
+        document.addEventListener('DOMContentLoaded', () => {
+            const savedTheme = localStorage.getItem('johari_theme');
+            if (savedTheme === 'light') document.documentElement.classList.remove('dark');
+            else document.documentElement.classList.add('dark');
+
+            Object.values(quadrantData).forEach(quad => {
+                buildModal(quad);
+                loadData(quad.id);
+            });
+        });
+
+        // Settings Dropdown Logic
+        function toggleSettings(e) {
+            e.stopPropagation();
+            const menu = document.getElementById('settings-menu');
+            menu.classList.toggle('active');
+        }
+
+        window.addEventListener('click', (e) => {
+            const menu = document.getElementById('settings-menu');
+            const btn = document.getElementById('settings-container');
+            if (menu.classList.contains('active') && !btn.contains(e.target)) {
+                menu.classList.remove('active');
+            }
+        });
+
+        function toggleTheme() {
+            document.documentElement.classList.toggle('dark');
+            const isDark = document.documentElement.classList.contains('dark');
+            localStorage.setItem('johari_theme', isDark ? 'dark' : 'light');
+            document.getElementById('settings-menu').classList.remove('active');
+        }
+
+        // Build Modals
+        function buildModal(quad) {
+            const container = document.querySelector(`#modal-${quad.id} .modal-content`);
+            const promptsHtml = quad.prompts.map(p => `<li class="mb-1.5 pl-1"><span class="text-slate-400 dark:text-slate-500 mr-1.5">•</span> ${p}</li>`).join('');
+
+            container.innerHTML = `
+                <div class="px-4 sm:px-5 py-3 border-b border-slate-200 dark:border-slate-700 flex justify-between items-center bg-slate-50 dark:bg-slate-800/50 rounded-t-xl">
+                    <div class="flex flex-col">
+                        <h2 class="text-lg sm:text-xl font-bold ${quad.color}">${quad.title}</h2>
+                        <p class="text-[9px] sm:text-[10px] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mt-0.5">${quad.axis}</p>
+                    </div>
+                    <button onclick="closeModal('${quad.id}')" aria-label="Close" class="p-1.5 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-slate-400">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                    </button>
+                </div>
+
+                <div class="p-3 sm:p-5 overflow-y-auto flex-grow flex flex-col md:flex-row gap-4 sm:gap-5">
+                    
+                    <div id="prompts-${quad.id}" class="md:w-2/5 lg:w-1/3 flex-shrink-0">
+                        <div class="bg-slate-50 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-700 rounded-lg flex flex-col">
+                            <button onclick="togglePrompts('${quad.id}')" class="w-full flex justify-between items-center p-3.5 sm:p-4 text-left focus:outline-none focus:ring-2 focus:ring-slate-300 rounded-lg" aria-expanded="true">
+                                <h4 class="font-bold text-slate-800 dark:text-slate-200 font-serif text-sm sm:text-base">Reflection Prompts</h4>
+                                <div id="toggle-btn-${quad.id}" class="text-slate-400 transition-transform duration-300">
+                                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 15l7-7 7 7"/></svg>
+                                </div>
+                            </button>
+                            <div id="prompts-content-${quad.id}" class="prompts-content">
+                                <div class="px-3.5 sm:px-4 pb-3.5 sm:pb-4">
+                                    <p class="text-[11px] sm:text-xs text-slate-600 dark:text-slate-400 italic mb-3">${quad.description}</p>
+                                    <ul class="text-[11px] sm:text-xs text-slate-700 dark:text-slate-300 leading-relaxed">
+                                        ${promptsHtml}
+                                    </ul>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="flex-grow flex flex-col min-w-0">
+                        <div class="flex items-center justify-between mb-1.5 px-1">
+                            <h4 class="font-bold text-slate-800 dark:text-slate-200 text-sm sm:text-base">Your Thoughts</h4>
+                            <span class="text-[9px] sm:text-[10px] font-normal text-slate-400" id="save-status-${quad.id}">Saved</span>
+                        </div>
+                        <div class="editor-container flex-grow h-full shadow-sm">
+                            <div class="editor-toolbar">
+                                <button type="button" class="editor-btn" onclick="execCmd('insertUnorderedList')" title="Bullet List" aria-label="Bullet List">${icons.ul} List</button>
+                                <button type="button" class="editor-btn" onclick="execCmd('indent')" title="Indent" aria-label="Indent">${icons.indent} Indent</button>
+                                <button type="button" class="editor-btn" onclick="execCmd('outdent')" title="Unindent" aria-label="Unindent">${icons.outdent} Unindent</button>
+                            </div>
+                            <div id="editor-${quad.id}" 
+                                class="editor-content flex-grow focus:bg-slate-50 dark:focus:bg-slate-800/50 transition-colors" 
+                                contenteditable="true" 
+                                data-placeholder="Start typing your reflections here..."
+                                oninput="handleInput('${quad.id}')"
+                                onblur="checkEmpty(this)">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="px-4 sm:px-5 py-3 border-t border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50 rounded-b-xl flex justify-end">
+                    <button onclick="closeModal('${quad.id}')" class="px-5 py-1.5 text-sm sm:text-base bg-slate-800 dark:bg-slate-700 text-white rounded-lg hover:bg-slate-900 dark:hover:bg-slate-600 transition-colors font-medium shadow-sm focus:outline-none focus:ring-2 focus:ring-slate-400">Done</button>
+                </div>
+            `;
+        }
+
+        // Toggle Prompts logic
+        function togglePrompts(id) {
+            const content = document.getElementById(`prompts-content-${id}`);
+            const btn = document.getElementById(`toggle-btn-${id}`);
+            
+            content.classList.toggle('collapsed');
+            
+            if (content.classList.contains('collapsed')) {
+                btn.classList.add('rotate-180');
+            } else {
+                btn.classList.remove('rotate-180');
+            }
+        }
+
+        // Editor & Data Handling
+        function execCmd(command) { document.execCommand(command, false, null); }
+
+        let saveTimeout;
+        function handleInput(id) {
+            const editor = document.getElementById(`editor-${id}`);
+            const status = document.getElementById(`save-status-${id}`);
+            
+            checkEmpty(editor);
+            
+            status.textContent = 'Saving...';
+            status.className = 'text-[9px] sm:text-[10px] font-normal text-amber-500';
+
+            clearTimeout(saveTimeout);
+            saveTimeout = setTimeout(() => {
+                const content = editor.innerHTML;
+                localStorage.setItem(`johari_${id}`, content);
+                updatePreview(id, content);
+                status.textContent = 'Saved';
+                status.className = 'text-[9px] sm:text-[10px] font-normal text-slate-400';
+            }, 600);
+        }
+
+        function checkEmpty(el) {
+            if (el.innerHTML.includes('<li')) {
+                el.dataset.empty = 'false';
+                return false;
+            }
+            
+            const temp = document.createElement('div');
+            temp.innerHTML = el.innerHTML;
+            if (temp.textContent.trim() === '' && el.innerHTML.indexOf('<img') === -1) {
+                el.dataset.empty = 'true';
+                return true;
+            } else {
+                el.dataset.empty = 'false';
+                return false;
+            }
+        }
+
+        function loadData(id) {
+            const content = localStorage.getItem(`johari_${id}`) || '';
+            const editor = document.getElementById(`editor-${id}`);
+            editor.innerHTML = content;
+            checkEmpty(editor);
+            updatePreview(id, content);
+        }
+
+        function updatePreview(id, content) {
+            const preview = document.getElementById(`preview-${id}`);
+            const temp = document.createElement('div');
+            temp.innerHTML = content;
+            if (temp.textContent.trim() === '') {
+                preview.innerHTML = '<span class="italic text-slate-400 dark:text-slate-500 text-xs">Click to add reflections...</span>';
+            } else {
+                preview.innerHTML = content;
+            }
+        }
+
+        // Modal Controls & Focus Trapping
+        function openModal(id) {
+            activeModalId = `modal-${id}`;
+            const modal = document.getElementById(activeModalId);
+            modal.classList.add('active');
+            document.body.style.overflow = 'hidden'; 
+            
+            const editor = document.getElementById(`editor-${id}`);
+            setTimeout(() => {
+                editor.focus();
+                if (checkEmpty(editor)) {
+                    document.execCommand('insertUnorderedList', false, null);
+                    checkEmpty(editor);
+                }
+                
+                // Scroll editor into view (helps on mobile when keyboard opens)
+                setTimeout(() => {
+                    editor.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                }, 150);
+            }, 100); 
+        }
+
+        function closeModal(id) {
+            document.getElementById(`modal-${id}`).classList.remove('active');
+            document.body.style.overflow = '';
+            activeModalId = null;
+            
+            const editor = document.getElementById(`editor-${id}`);
+            const content = editor.innerHTML;
+            localStorage.setItem(`johari_${id}`, content);
+            updatePreview(id, content);
+        }
+
+        // Clear Data Flow
+        function openClearModal() {
+            activeModalId = 'modal-clear';
+            document.getElementById('modal-settings')?.classList.remove('active'); // ensure dropdown closes
+            document.getElementById('settings-menu').classList.remove('active');
+            document.getElementById('modal-clear').classList.add('active');
+            setTimeout(() => document.getElementById('btn-confirm-clear').focus(), 50);
+        }
+
+        function closeClearModal() {
+            document.getElementById('modal-clear').classList.remove('active');
+            activeModalId = null;
+        }
+
+        function executeClearData() {
+            Object.keys(quadrantData).forEach(id => {
+                localStorage.removeItem(`johari_${id}`);
+                const editor = document.getElementById(`editor-${id}`);
+                editor.innerHTML = '';
+                checkEmpty(editor);
+                updatePreview(id, '');
+            });
+            closeClearModal();
+        }
+
+        // Global Event Listeners for Accessibility (Esc and Tab Trapping)
+        document.addEventListener('keydown', function(e) {
+            if (!activeModalId) return;
+
+            // Escape to close
+            if (e.key === 'Escape') {
+                if (activeModalId === 'modal-clear') closeClearModal();
+                else closeModal(activeModalId.replace('modal-', ''));
+                return;
+            }
+
+            // Focus Trap on Tab
+            if (e.key === 'Tab') {
+                const modal = document.getElementById(activeModalId);
+                const focusableElements = 'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"]), [contenteditable="true"]';
+                const focusableContent = modal.querySelectorAll(focusableElements);
+                if (focusableContent.length === 0) return;
+
+                const first = focusableContent[0];
+                const last = focusableContent[focusableContent.length - 1];
+
+                if (e.shiftKey) { // Shift + Tab
+                    if (document.activeElement === first) {
+                        last.focus();
+                        e.preventDefault();
+                    }
+                } else { // Tab
+                    if (document.activeElement === last) {
+                        first.focus();
+                        e.preventDefault();
+                    }
+                }
+            }
+        });
+
+        // Close on overlay click
+        document.querySelectorAll('.modal-overlay').forEach(overlay => {
+            overlay.addEventListener('click', function(e) {
+                if (e.target === this) {
+                    if (this.id === 'modal-clear') closeClearModal();
+                    else closeModal(this.id.replace('modal-', ''));
+                }
+            });
+        });
+
+        // Print Logic
+        function preparePrint() {
+            const printContent = document.getElementById('print-content');
+            printContent.innerHTML = '';
+
+            Object.values(quadrantData).forEach(quad => {
+                const content = localStorage.getItem(`johari_${quad.id}`) || '<p class="italic text-slate-500">No reflections recorded.</p>';
+                printContent.innerHTML += `
+                    <div class="print-section">
+                        <h2>${quad.title} <span style="font-size: 0.75rem; font-weight: normal; color: #64748b; margin-left: 10px;">(${quad.axis})</span></h2>
+                        <div class="desc">${quad.description}</div>
+                        <div class="content">${content}</div>
+                    </div>
+                `;
+            });
+            window.print();
+        }
+    </script>
+</body>
+</html>
